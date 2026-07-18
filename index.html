@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Korea Soccer!</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body { margin: 0; padding: 0; overflow: hidden; background-color: #1a1a1a; touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+#gameCanvas { display: block; background: #2d7a2d; cursor: crosshair; touch-action: none; }
+.celebration-text { font-size: 80px; font-weight: bold; color: yellow; text-shadow: 4px 4px 0 #000; animation: siuuu 1s ease-out infinite; }
+@keyframes siuuu { 0% { transform: scale(1) rotate(-5deg); opacity: 1; } 50% { transform: scale(1.3) rotate(5deg); opacity: 1; } 100% { transform: scale(1) rotate(-5deg); opacity: 1; } }
+.shutter-effect { animation: shutter 0.3s ease-out; }
+@keyframes shutter { 0% { opacity: 0; } 50% { opacity: 1; background: white; } 100% { opacity: 0; } }
+.d-pad { position: absolute; bottom: 20px; left: 20px; width: 150px; height: 150px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 5px; z-index: 100; }
+.d-btn { background-color: rgba(255, 255, 255, 0.3); border: 2px solid #fff; border-radius: 50%; color: #fff; font-size: 24px; display: flex; align-items: center; justify-content: center; }
+#shootBtn { position: absolute; bottom: 45px; right: 20px; width: 100px; height: 100px; background-color: rgba(255, 0, 0, 0.6); border: 3px solid #fff; border-radius: 50%; color: #fff; font-size: 20px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 100; }
+</style>
+</head>
+<body class="flex items-center justify-center h-screen relative">
+<canvas id="gameCanvas"></canvas>
+<div id="ui" class="absolute inset-0 flex flex-col items-center justify-center">
+<div id="startScreen" class="bg-black bg-opacity-70 p-10 rounded-xl text-center shadow-2xl">
+<h1 class="text-6xl font-extrabold text-red-600 mb-8 tracking-tighter">KOREA SOCCER!</h1>
+<button id="startBtn" class="bg-red-600 text-white text-3xl px-12 py-5 rounded-full hover:bg-red-700 transition font-bold">경기 시작!</button>
+</div>
+<div id="playerSelect" class="bg-black bg-opacity-70 p-10 rounded-xl text-center shadow-2xl hidden">
+<h2 class="text-4xl font-bold text-white mb-8">선수를 선택하세요</h2>
+<div class="flex space-x-6">
+<button class="select-btn bg-white p-4 rounded-lg shadow-lg hover:scale-105 transition" data-player="son"><p class="font-bold">손흥민</p></button>
+<button class="select-btn bg-white p-4 rounded-lg shadow-lg hover:scale-105 transition" data-player="lee"><p class="font-bold">이강인</p></button>
+<button class="select-btn bg-white p-4 rounded-lg shadow-lg hover:scale-105 transition" data-player="ronaldo"><p class="font-bold">호날두</p></button>
+</div>
+</div>
+</div>
+<div id="gameUI" class="absolute top-5 left-5 right-5 text-white flex justify-between items-center font-mono text-2xl hidden p-3 bg-black bg-opacity-30 rounded-lg">
+<div id="timer">05:00</div>
+<div id="score" class="font-bold text-3xl">🇰🇷 0 : 0 🌏</div>
+</div>
+<div id="celebrationOverlay" class="absolute inset-0 flex items-center justify-center hidden bg-black bg-opacity-50">
+<div id="celebrationContent" class="text-center"></div>
+</div>
+<div id="dPad" class="d-pad hidden">
+<div id="btnUp" class="d-btn" style="grid-column:2;grid-row:1">▲</div>
+<div id="btnDown" class="d-btn" style="grid-column:2;grid-row:3">▼</div>
+<div id="btnLeft" class="d-btn" style="grid-column:1;grid-row:2">◀</div>
+<div id="btnRight" class="d-btn" style="grid-column:3;grid-row:2">▶</div>
+</div>
+<button id="shootBtn" class="hidden">Shoot!⚽</button>
+<div class="absolute bottom-2 left-0 right-0 text-center text-xs text-gray-400 font-sans z-50">copyright 2026 super rice jamjam studio. all right reserved.</div>
+<audio id="bgmOriginal" loop src="korea_soccer.mp3"></audio>
+<audio id="bgmFinal" loop src="korea_soccer(2m 30s left).mp3"></audio>
+<audio id="siuuuSound" src="ronaldo_siuuu.mp3"></audio>
+<audio id="shutterSound" src="son_shutter.mp3"></audio>
+<script>
+const C=document.getElementById('gameCanvas'),X=C.getContext('2d'),W=Math.min(window.innerWidth,1200),H=Math.min(window.innerHeight,800),ctxA=new(window.AudioContext||window.webkitAudioContext)();
+C.width=W;C.height=H;
+let gs='start',curG=document.getElementById('bgmOriginal'),pl=null,pS=0,eS=0,time=300,isCel=false,keys={},isM=false;
+const plC={son:{r:18,c:'red',s:4},lee:{r:18,c:'red',s:4.5},ronaldo:{r:18,c:'white',s:4}},b={x:W/2,y:H/2,r:10,vx:0,vy:0,f:0.99},go={y:H/2-75,w:10,h:150};
+function pK(){const o=ctxA.createOscillator(),g=ctxA.createGain();o.type='square';o.frequency.setValueAtTime(100,ctxA.currentTime);o.frequency.exponentialRampToValueAtTime(0.01,ctxA.currentTime+0.1);g.gain.setValueAtTime(0.5,ctxA.currentTime);g.gain.exponentialRampToValueAtTime(0.01,ctxA.currentTime+0.1);o.connect(g);g.connect(ctxA.destination);o.start();o.stop(ctxA.currentTime+0.1);}
+function playB(a){if(curG&&!curG.paused)curG.pause();curG=a;curG.currentTime=0;curG.play();}
+function loop(){if(!isCel&&gs==='play'){X.fillStyle='#2d7a2d';X.fillRect(0,0,W,H);X.strokeStyle='white';X.lineWidth=4;X.strokeRect(50,50,W-100,H-100);X.beginPath();X.moveTo(W/2,50);X.lineTo(W/2,H-50);X.stroke();X.beginPath();X.arc(W/2,H/2,70,0,Math.PI*2);X.stroke();X.fillStyle='white';X.fillRect(W-go.w-50,go.y,go.w,go.h);X.fillStyle='red';X.fillRect(50,go.y,go.w,go.h);let d={x:0,y:0};if(keys['ArrowUp']||keys['Up'])d.y=-1;if(keys['ArrowDown']||keys['Down'])d.y=1;if(keys['ArrowLeft']||keys['Left'])d.x=-1;if(keys['ArrowRight']||keys['Right'])d.x=1;pl.x+=d.x*pl.s;pl.y+=d.y*pl.s;b.x+=b.vx;b.y+=b.vy;b.vx*=b.f;b.vy*=b.f;let dX=b.x-pl.x,dY=b.y-pl.y,dist=Math.sqrt(dX*dX+dY*dY);if(dist<pl.r+b.r){let nX=dX/dist,nY=dY/dist,sp=Math.sqrt(b.vx*b.vx+b.vy*b.vy)+3;b.vx=nX*sp;b.vy=nY*sp;}if(b.x>W-60&&b.y>go.y&&b.y<go.y+go.h){pS++;setTimeout(()=>resetP('enemy'),1000);}else if(b.x<60&&b.y>go.y&&b.y<go.y+go.h){eS++;setTimeout(()=>resetP('player'),1000);}X.fillStyle=pl.c;X.beginPath();X.arc(pl.x,pl.y,pl.r,0,Math.PI*2);X.fill();X.fillStyle='white';X.beginPath();X.arc(b.x,b.y,b.r,0,Math.PI*2);X.fill();}requestAnimationFrame(loop);}
+function resetP(side){b.x=W/2;b.y=H/2;b.vx=0;b.vy=0;}
+function sh(){pK();let dX=b.x-pl.x,dY=b.y-pl.y,dist=Math.sqrt(dX*dX+dY*dY);if(dist<pl.r+b.r+20){b.vx=(dX/dist)*15;b.vy=(dY/dist)*15;}}
+window.addEventListener('keydown',e=>{keys[e.key]=true;if(e.key===' ')sh();});
+window.addEventListener('keyup',e=>keys[e.key]=false);
+document.getElementById('startBtn').addEventListener('click',()=>{document.getElementById('startScreen').classList.add('hidden');document.getElementById('playerSelect').classList.remove('hidden');});
+document.querySelectorAll('.select-btn').forEach(b=>b.addEventListener('click',e=>{pl={...plC[e.currentTarget.getAttribute('data-player')],x:W/2,y:H/2};document.getElementById('playerSelect').classList.add('hidden');document.getElementById('gameUI').classList.remove('hidden');gs='play';playB(document.getElementById('bgmOriginal'));if('ontouchstart' in window){document.getElementById('dPad').classList.remove('hidden');document.getElementById('shootBtn').classList.remove('hidden');} setInterval(()=>{time--;if(time===150)playB(document.getElementById('bgmFinal'));},1000);}));
+['Up','Down','Left','Right'].forEach(k=>document.getElementById('btn'+k).addEventListener('touchstart',()=>keys[k]=true));
+['Up','Down','Left','Right'].forEach(k=>document.getElementById('btn'+k).addEventListener('touchend',()=>keys[k]=false));
+document.getElementById('shootBtn').addEventListener('touchstart',sh);
+loop();
+</script>
+</body>
+</html>
